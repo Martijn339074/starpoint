@@ -1,0 +1,47 @@
+services:
+  starpoint:
+    build: .
+    container_name: starpoint
+    environment:
+      - CDN_DIR=/cdn
+      - LISTEN_HOST=0.0.0.0
+      - LISTEN_PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.cdn:/cdn
+      - ./.database:/app/.database
+    restart: unless-stopped
+
+  mitmproxy:
+    image: mitmproxy/mitmproxy:latest
+    container_name: starpoint-proxy
+    depends_on:
+      - starpoint
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STARPOINT_HOST=starpoint
+      - STARPOINT_PORT=8000
+      - STARPOINT_SCHEME=http
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./mitmproxy_certs:/home/mitmproxy/.mitmproxy
+      - ./redirect.py:/home/mitmproxy/redirect.py
+    command: >
+      mitmweb
+      --web-host 0.0.0.0
+      --web-port 8081
+      --listen-host 0.0.0.0
+      --listen-port 8080
+      --set block_global=false
+      --set connection_strategy=lazy
+      --allow-hosts gc-openapi-zinny3.kakaogames.com
+      --allow-hosts gc-infodesk-zinny3.kakaogames.com
+      --allow-hosts na.wdfp.kakaogames.com
+      --allow-hosts patch.wdfp.kakaogames.com
+      --allow-hosts openapi-zinny3.game.kakao.com
+      --allow-hosts openapi-zinny3.game.kakaogames.com
+      -s /home/mitmproxy/redirect.py
+    restart: unless-stopped
